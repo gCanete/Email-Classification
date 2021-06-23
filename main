@@ -1,0 +1,659 @@
+import nltk
+import pandas as pd
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import os
+import string
+from string import digits
+from nltk.stem import WordNetLemmatizer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import SGDClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from nltk.corpus import stopwords
+from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
+from gensim.models import Doc2Vec
+from gensim.models.doc2vec import TaggedDocument
+
+mpl.rc('axes', labelsize=14)
+mpl.rc('xtick', labelsize=12)
+mpl.rc('ytick', labelsize=12)
+
+PROJECT_ROOT_DIR = "."
+DATA_DIR = "data"
+DATA_PATH = os.path.join(PROJECT_ROOT_DIR, DATA_DIR)
+os.makedirs(DATA_PATH, exist_ok=True)
+os.environ['PATH'] = os.environ['PATH'] + ';' + os.environ['CONDA_PREFIX'] + r"\Library\bin\graphviz"
+DATA_SPAM_FILE = "spam_ham_dataset.csv"
+FRAUD_FILE = "fradulent_emails.txt"
+
+src_df = pd.read_csv(DATA_SPAM_FILE, header=0)
+
+df1 = src_df.copy()
+separator = '\r\n'
+
+# --------------------------------------
+# ----- Preparing Spam/Ham Dataset -----
+# --------------------------------------
+
+df1[["subject", "text"]] = df1["text"].str.split(separator, n=1, expand=True)
+df1['subject'] = df1['subject'].str.replace('Subject:', '')
+
+# --------------------------------------
+# ------ Preparing Fraud Dataset -------
+# --------------------------------------
+
+file_emails = FRAUD_FILE
+file_emails_format = "emails_format.csv"
+
+f1 = open(file_emails, "r")
+f2 = open(file_emails_format, "w")
+
+f1.seek(0)
+f2.seek(0)
+
+f1_lineas = f1.readlines()
+
+aux = 0
+
+f2.write("#subject#text\n")
+for line in f1_lineas:
+    if line.strip().startswith("From r"):
+        aux = 0
+        f2.write("\n")
+
+    elif line.strip().startswith("Return-Path"):
+        f2.write("")
+
+    elif line.strip().startswith("X-"):
+        f2.write("")
+
+    elif line.strip().startswith("x-"):
+        f2.write("")
+
+    elif line.strip().startswith("Date"):
+        f2.write("")
+
+    elif line.strip().startswith("X-Sieve"):
+        f2.write("")
+
+    elif line.strip().startswith("From:"):
+        f2.write("")
+
+    elif line.strip().startswith("Message-"):
+        f2.write("")
+
+    elif line.strip().startswith("h="):
+        f2.write("")
+
+    elif line.strip().startswith("Mime-Version"):
+        f2.write("")
+
+    elif line.strip().startswith("Content-Language"):
+        f2.write("")
+
+    elif line.strip().startswith("X-Expiredinmiddle"):
+        f2.write("")
+
+    elif line.strip().startswith("Reply-To"):
+        f2.write("")
+
+    elif line.strip().startswith("X-Sent-Mail"):
+        f2.write("")
+
+    elif line.strip().startswith("X-Mailer"):
+        f2.write("")
+
+    elif line.strip().startswith("Subject"):
+        f2.write("# " + line.strip())
+
+    elif line.strip().startswith("X-Priority"):
+        f2.write("")
+
+    elif line.strip().startswith("X-Sender-Ip"):
+        f2.write("")
+
+    elif line.strip().startswith("Organization"):
+        f2.write("")
+
+    elif line.strip().startswith("Content-Type"):
+        f2.write("")
+
+    elif line.strip().startswith("Content-Language"):
+        f2.write("")
+
+    elif line.strip().startswith("Content-Transfer-Encoding"):
+        f2.write("")
+
+    elif line.strip().startswith("X-MIME-Autoconverted"):
+        f2.write("")
+
+    elif line.strip().startswith("Status"):
+        f2.write("")
+
+    elif line.strip().startswith("To"):
+        f2.write("")
+
+    elif line.strip().startswith("X-Originating"):
+        f2.write("")
+
+    elif line.strip().startswith("Content-Disposition"):
+        f2.write("")
+
+    elif line.strip().startswith("MIME-"):
+        f2.write("")
+
+    elif line.strip().startswith("Message-ID"):
+        f2.write("")
+
+    elif line.strip().startswith("X-Spam"):
+        f2.write("")
+
+    elif line.strip().startswith("	tests="):
+        f2.write("")
+
+    elif line.strip().startswith("	version="):
+        f2.write("")
+
+    elif line.strip().startswith("  * "):
+        f2.write("")
+
+    elif line.strip().startswith("X-Been"):
+        f2.write("")
+
+    elif line.strip().startswith("X-Mailman"):
+        f2.write("")
+
+    elif line.strip().startswith("Sender"):
+        f2.write("")
+
+    elif line.strip().startswith("List-"):
+        f2.write("")
+
+    elif line.strip().startswith("Precedence"):
+        f2.write("")
+
+    elif line.strip().startswith("Content-"):
+        f2.write("")
+
+    elif line.strip().startswith("Cc:"):
+        f2.write("")
+
+    elif line.strip().startswith("cc:"):
+        f2.write("")
+
+    elif line.strip().startswith("CC:"):
+        f2.write("")
+
+    elif line.strip().startswith("charset"):
+        f2.write("")
+
+    elif line.strip().startswith("tests"):
+        f2.write("")
+
+    elif line.strip().startswith("for <"):
+        f2.write("")
+
+    elif line.strip().startswith("Delivered"):
+        f2.write("")
+
+    elif line.strip().startswith("by "):
+        f2.write("")
+
+    elif line.strip().startswith("<"):
+        f2.write("")
+
+    elif line.strip().startswith("Mime"):
+        f2.write("")
+
+    elif line.strip().startswith("Mon,"):
+        f2.write("")
+
+    elif line.strip().startswith("Tue,"):
+        f2.write("")
+
+    elif line.strip().startswith("Wed,"):
+        f2.write("")
+
+    elif line.strip().startswith("Thu,"):
+        f2.write("")
+
+    elif line.strip().startswith("Fri,"):
+        f2.write("")
+
+    elif line.strip().startswith("Sat,"):
+        f2.write("")
+
+    elif line.strip().startswith("Sun,"):
+        f2.write("")
+
+    elif line.strip().startswith("Errors"):
+        f2.write("")
+
+    elif line.strip().startswith("12 Mar"):
+        f2.write("")
+
+    elif line.strip().startswith("14 May"):
+        f2.write("")
+
+    elif line.strip().startswith("Resent"):
+        f2.write("")
+
+    elif line.strip().startswith("with ESM"):
+        f2.write("")
+
+    elif line.strip().startswith("with "):
+        f2.write("")
+
+    elif line.strip().startswith("id <"):
+        f2.write("")
+
+    elif line.strip().startswith("User-"):
+        f2.write("")
+
+    elif line.strip().startswith("boundary="):
+        f2.write("")
+
+    else:
+        if aux == 0:
+            aux = 1
+            f2.write("#" + line.strip() + " ")
+        else:
+            f2.write(line.strip() + " ")
+
+f1.close()
+f2.close()
+
+df2 = pd.read_csv(file_emails_format, sep='#', error_bad_lines=False, header=0, engine='python')
+df2.drop('Unnamed: 0', axis=1, inplace=True)
+
+df2['subject'] = df2['subject'].apply(lambda c: ' '.join(c.lower() for c in c.split()))
+df2 = df2[df2["subject"].str.contains('subject')]
+df2["subject"] = df2["subject"].str.replace('subject:', '')
+df2 = df2.assign(label_num=1)
+
+df3 = src_df.copy()
+df3.drop('Unnamed: 0', axis=1, inplace=True)
+df3.drop('label', axis=1, inplace=True)
+df3[["subject", "text"]] = df3["text"].str.split(separator, n=1, expand=True)
+df3['subject'] = df3['subject'].str.replace('subject:', '')
+df3 = df3[df3['label_num'] == 0]
+
+order = ['subject', 'text', 'label_num']
+df2 = df2.reindex(columns=order)
+df3 = df3.reindex(columns=order)
+
+df2 = pd.concat([df2, df3], axis=0, sort=False)
+df2.dropna(subset=['subject'], inplace=True)
+df2.dropna(subset=['text'], inplace=True)
+
+print("hola")
+# --------------------------------------
+# -------Auxiliary Functions------------
+# --------------------------------------
+
+vader = SentimentIntensityAnalyzer()
+
+
+def sent(a):
+    if a < 0:
+        return -1
+    elif a > 0:
+        return 1
+    else:
+        return 0
+
+
+def char_count(a):
+    count = 0
+    for char in a:
+        count += 1
+    return count
+
+
+def word_count(a):
+    a.translate(str.maketrans('', '', string.punctuation))
+    count = 1
+    for char in a:
+        if char == " ":
+            count += 1
+
+    return count
+
+
+# --------------------------------------
+# ------ Sentiment + Word count -------
+# --------------------------------------
+
+def model1(df):
+    print("Starting Model 1: Sentiment + Word count")
+
+    # Preparing Text: Character count, word count and Sentiment Analysis
+    df['t_scores'] = df['text'].apply(lambda text: vader.polarity_scores(text))
+    df['t_compound'] = df['t_scores'].apply(lambda score_dict: score_dict['compound'])
+    df['t_sentiment'] = df['t_compound'].apply(lambda c: sent(c))
+    df['t_ch_count'] = df['text'].apply(lambda c: char_count(c))
+    df['t_word_count'] = df['text'].apply(lambda c: word_count(c))
+
+    # Preparing Subject: Character count, word count and Sentiment Analysis
+    df['s_scores'] = df['subject'].apply(lambda text: vader.polarity_scores(text))
+    df['s_compound'] = df['s_scores'].apply(lambda score_dict: score_dict['compound'])
+    df['s_sentiment'] = df['s_compound'].apply(lambda c: sent(c))
+    df['s_ch_count'] = df['subject'].apply(lambda c: char_count(c))
+    df['s_word_count'] = df['subject'].apply(lambda c: word_count(c))
+
+    # Removing unnecessary headers
+    headers = list(df)
+    # headers.remove('subject_text')
+    headers.remove('text')
+    headers.remove('subject')
+
+    if 'label' in headers:
+        headers.remove('label')
+
+    if 'label_num' in headers:
+        headers.remove('label_num')
+
+    if 'Unnamed: 0' in headers:
+        headers.remove('Unnamed: 0')
+
+    if 't_scores' in headers:
+        headers.remove('t_scores')
+
+    if 's_scores' in headers:
+        headers.remove('s_scores')
+
+    mail_train, mail_test, y_train, y_test = train_test_split(df[headers], df['label_num'], test_size=0.2,
+                                                              random_state=1000)
+
+    num_pipeline = Pipeline([('std_scaler', StandardScaler())])
+    train = num_pipeline.fit_transform(mail_train)
+    test = num_pipeline.fit_transform(mail_test)
+
+    return [train, test, y_train, y_test]
+
+
+# ----------------------------------------------
+# ------ Model 2: TFIDF/Count Vectorizer -------
+# ----------------------------------------------
+
+def model2(df):
+    print("Starting Model 2: TF-IDF/Count Vectorizer")
+
+    # Removing unnecessary headers
+    headers = list(df)
+    if 'label' in headers:
+        headers.remove('label')
+    if 'label_num' in headers:
+        headers.remove('label_num')
+    if 'Unnamed: 0' in headers:
+        headers.remove('Unnamed: 0')
+
+    vectorizer1 = TfidfVectorizer(analyzer='word', input='content', ngram_range=(1, 1), min_df=3)
+    vectorizer2 = TfidfVectorizer(analyzer='word', input='content', ngram_range=(1, 1), min_df=3)
+
+    mail_train, mail_test, y_train, y_test = train_test_split(df[headers], df['label_num'], test_size=0.2,
+                                                              random_state=1000)
+
+    vectorizer1.fit(mail_train['text'])
+    x_train1 = vectorizer1.transform(mail_train['text']).todense()
+    x_test1 = vectorizer1.transform(mail_test['text']).todense()
+
+    vectorizer2.fit(mail_train['subject'])
+    x_train2 = vectorizer2.transform(mail_train['subject']).todense()
+    x_test2 = vectorizer2.transform(mail_test['subject']).todense()
+
+    mail_train.drop(['text'], axis=1, inplace=True)
+    mail_test.drop(['text'], axis=1, inplace=True)
+
+    df2_train = pd.DataFrame(x_train1)
+    df2_test = pd.DataFrame(x_test1)
+
+    mail_train.drop(['subject'], axis=1, inplace=True)
+    mail_test.drop(['subject'], axis=1, inplace=True)
+
+    df2_train1 = pd.DataFrame(x_train1)
+    df2_test1 = pd.DataFrame(x_test1)
+
+    df2_train2 = pd.DataFrame(x_train1)
+    df2_test2 = pd.DataFrame(x_test1)
+
+    df2_train1.reset_index(drop=True, inplace=True)
+    df2_test1.reset_index(drop=True, inplace=True)
+    df2_train2.reset_index(drop=True, inplace=True)
+    df2_test2.reset_index(drop=True, inplace=True)
+
+    union_train = pd.concat([df2_train1, df2_train2], axis=1, sort=False)
+    union_test = pd.concat([df2_test1, df2_test2], axis=1, sort=False)
+
+    num_pipeline = Pipeline([('std_scaler', StandardScaler())])
+    train = num_pipeline.fit_transform(union_train)
+    test = num_pipeline.fit_transform(union_test)
+
+    return [train, test, y_train, y_test]
+
+
+# -----------------------------------------
+# ------ N-gram range test function -------
+# -----------------------------------------
+
+def test(df, name, classifier, ran, show):
+    print(name, ":")
+    ngram = list()
+    prob = list()
+
+    mail_train, mail_test, y_train, y_test = train_test_split(df['text'], df['label_num'], test_size=0.2,
+                                                              random_state=1000)
+    for x in range(1, ran + 1):
+        for y in range(1, ran + 1):
+            if x <= y:
+                vectorizer = CountVectorizer(analyzer='word', input='content', ngram_range=(x, y))
+                vectorizer.fit(mail_train)
+                x_train = vectorizer.transform(mail_train)
+                x_test = vectorizer.transform(mail_test)
+                classifier.fit(x_train, y_train)
+                y_prob1 = classifier.score(x_test, y_test)
+                print("ngram(", x, ",", y, ") Prob = ", y_prob1)
+                ng = [x, y]
+                ngram.append(str(ng))
+                prob.append(y_prob1)
+
+    if show == 1:
+        plt.bar(ngram, prob)
+        plt.title(name)
+        plt.xlabel("Rango de n-grama")
+        plt.ylabel("Probabilidad de Acierto")
+        plt.show()
+
+
+# -----------------------------------------
+# ------ Model 3: Model 1 + Model 2 -------
+# -----------------------------------------
+
+def model3(df):
+    print("Starting Model 3: Model 1 + Model 2")
+
+    df['t_scores'] = df['text'].apply(lambda text: vader.polarity_scores(text))
+    df['t_compound'] = df['t_scores'].apply(lambda score_dict: score_dict['compound'])
+    df['t_sentiment'] = df['t_compound'].apply(lambda c: sent(c))
+    df['t_ch_count'] = df['text'].apply(lambda c: char_count(c))
+    df['t_word_count'] = df['text'].apply(lambda c: word_count(c))
+
+    # Preparing Subject: Character count, word count and Sentiment Analysis
+    df['s_scores'] = df['subject'].apply(lambda text: vader.polarity_scores(text))
+    df['s_compound'] = df['s_scores'].apply(lambda score_dict: score_dict['compound'])
+    df['s_sentiment'] = df['s_compound'].apply(lambda c: sent(c))
+    df['s_ch_count'] = df['subject'].apply(lambda c: char_count(c))
+    df['s_word_count'] = df['subject'].apply(lambda c: word_count(c))
+
+    # Removing unnecessary headers
+    headers = list(df)
+
+    if 'label' in headers:
+        headers.remove('label')
+
+    if 'label' in headers:
+        headers.remove('t_sentiment')
+
+    if 'label' in headers:
+        headers.remove('s_sentiment')
+
+    if 'label_num' in headers:
+        headers.remove('label_num')
+
+    if 'Unnamed: 0' in headers:
+        headers.remove('Unnamed: 0')
+
+    if 't_scores' in headers:
+        headers.remove('t_scores')
+
+    if 's_scores' in headers:
+        headers.remove('s_scores')
+
+    vectorizer1 = TfidfVectorizer(analyzer='word', input='content', ngram_range=(1, 1), min_df=3)
+    vectorizer2 = TfidfVectorizer(analyzer='word', input='content', ngram_range=(1, 1), min_df=3)
+
+    mail_train, mail_test, y_train, y_test = train_test_split(df[headers], df['label_num'], test_size=0.2,
+                                                              random_state=1000)
+
+    vectorizer1.fit(mail_train['text'])
+    x_train1 = vectorizer1.transform(mail_train['text']).todense()
+    x_test1 = vectorizer1.transform(mail_test['text']).todense()
+
+    vectorizer2.fit(mail_train['subject'])
+    x_train2 = vectorizer2.transform(mail_train['subject']).todense()
+    x_test2 = vectorizer2.transform(mail_test['subject']).todense()
+
+    mail_train.drop(['text'], axis=1, inplace=True)
+    mail_test.drop(['text'], axis=1, inplace=True)
+
+    df2_train = pd.DataFrame(x_train1)
+    df2_test = pd.DataFrame(x_test1)
+
+    mail_train.drop(['subject'], axis=1, inplace=True)
+    mail_test.drop(['subject'], axis=1, inplace=True)
+
+    df2_train1 = pd.DataFrame(x_train1)
+    df2_test1 = pd.DataFrame(x_test1)
+
+    df2_train2 = pd.DataFrame(x_train1)
+    df2_test2 = pd.DataFrame(x_test1)
+
+    df2_train1.reset_index(drop=True, inplace=True)
+    df2_test1.reset_index(drop=True, inplace=True)
+    df2_train2.reset_index(drop=True, inplace=True)
+    df2_test2.reset_index(drop=True, inplace=True)
+    mail_train.reset_index(drop=True, inplace=True)
+    mail_test.reset_index(drop=True, inplace=True)
+
+    union_train = pd.concat([df2_train1, df2_train2, mail_train['t_word_count'], mail_train['s_word_count'],
+                             mail_train['t_compound'], mail_train['s_compound']], axis=1, sort=False)
+    union_test = pd.concat([df2_test1, df2_test2, mail_test['t_word_count'], mail_test['s_word_count'],
+                            mail_test['t_compound'], mail_test['s_compound']], axis=1, sort=False)
+
+    num_pipeline = Pipeline([('std_scaler', StandardScaler())])
+    train = num_pipeline.fit_transform(union_train)
+    test = num_pipeline.fit_transform(union_test)
+
+    return [train, test, y_train, y_test]
+
+
+# --------------------------------------
+# --------- Model 4: Doc2Vec -----------
+# --------------------------------------
+
+def model4(df):
+    print("Starting Model 4: Word Embeddings")
+    stop_words = set(stopwords.words('english'))
+    word_lematizer = WordNetLemmatizer()
+    remove_digits = str.maketrans('', '', digits)
+
+    # df['text'] = df['text'] + df['subject']
+    df['text'] = df['text'].apply(lambda c: c.translate(remove_digits))
+    df['text'] = df['text'].apply(lambda c: c.translate(str.maketrans('', '', string.punctuation)))
+    df['text'] = df['text'].apply(lambda c: ' '.join(c.lower() for c in c.split()))
+    df['text'] = df['text'].apply(lambda x: ' '.join(x for x in x.split() if not x in stop_words))
+    df['text'] = df['text'].apply(lambda c: " ".join([word_lematizer.lemmatize(word) for word in c.split()]))
+    df['text'] = df.apply(lambda row: nltk.word_tokenize(row['text']), axis=1)
+
+    train, test, y_train, y_test = train_test_split(df['text'], df['label_num'], random_state=1000)
+
+    train_doc2vec = [TaggedDocument(d, tags=[str(i)]) for i, d in enumerate(train)]
+
+    d2v_model = Doc2Vec(vector_size=50, alpha=0.025, min_count=5, dm=1, epochs=100, workers=8)
+    d2v_model.build_vocab(train_doc2vec)
+    d2v_model.train(train_doc2vec, total_examples=d2v_model.corpus_count, epochs=d2v_model.epochs)
+    d2v_model.save("d2v.model")
+    print("Model Saved")
+
+    model = Doc2Vec.load("d2v.model")
+    # infer in multiple steps to get a stable representation.
+    train_vectors = [model.infer_vector(list_of_tokens, steps=50) for list_of_tokens in train]
+    test_vectors = [model.infer_vector(list_of_tokens, steps=50) for list_of_tokens in test]
+
+    return [train_vectors, test_vectors, y_train, y_test]
+
+
+# --------------------------------------
+# -------------- Training---------------
+# --------------------------------------
+
+def ml_train(x):
+    print("----Training----")
+    print("Decision Tree")
+    clf = DecisionTreeClassifier(random_state=42)
+    clf.fit(x[0], x[2])
+    # predict = clf.predict(x[1])
+    # print(classification_report(x[3], predict))
+
+    y_prob = clf.score(x[1], x[3])
+    print(y_prob * 100)
+
+    print("SGDC")
+    clf = SGDClassifier(random_state=42, n_jobs=-1)
+    clf.fit(x[0], x[2])
+    # predict = clf.predict(x[1])
+    # print(classification_report(x[3], predict))
+    y_prob = clf.score(x[1], x[3])
+    print(y_prob * 100)
+
+    print("Logistic Regression")
+    clf = LogisticRegression(max_iter=100, n_jobs=-1)
+    clf.fit(x[0], x[2])
+    # predict = clf.predict(x[1])
+    # print(classification_report(x[3], predict))
+    y_prob = clf.score(x[1], x[3])
+    print(y_prob * 100)
+
+    print("Random Forest")
+    clf = RandomForestClassifier(random_state=42, n_jobs=-1)
+    clf.fit(x[0], x[2])
+    # predict = clf.predict(x[1])
+    # print(classification_report(x[3], predict))
+    y_prob = clf.score(x[1], x[3])
+    print(y_prob * 100)
+
+
+if __name__ == '__main__':
+    # Classifiers for test function
+    clf1 = DecisionTreeClassifier(random_state=42)
+    clf2 = SGDClassifier(random_state=42, n_jobs=-1)
+    clf3 = LogisticRegression(max_iter=100, n_jobs=-1)
+    clf4 = RandomForestClassifier(random_state=42, n_jobs=-1)
+
+    # Main Program
+    df1 = df1.copy()
+    df2 = df2.copy()
+
+    x = model1(df1)
+    ml_train(x)
+
+    y = model1(df2)
+    ml_train(y)
